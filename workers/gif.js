@@ -15,7 +15,7 @@ parentPort.once("message", async (msg) => {
   if (msg.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
   }
-  
+
   if (!isMainThread) {
     let { imgUrl, list, frameSkip, speed, jimp } = msg;
     try {
@@ -126,6 +126,7 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, cb) {
       buffer: await newImg.getBufferAsync(Jimp.AUTO),
       list,
       allowBackgrounds: i == 0 || frameData[i].disposalMethod != 1,
+      imageMagick: msg.imageMagick,
     });
 
     worker.on("message", async (img) => {

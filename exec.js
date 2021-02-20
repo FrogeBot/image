@@ -37,6 +37,7 @@ module.exports = function(imageMagick) {
             frameSkip: 1,
             speed: 1,
             jimp: true,
+            imageMagick,
           });
 
           worker.on("message", async (img) => {
@@ -49,7 +50,7 @@ module.exports = function(imageMagick) {
         }
       } else {
         let worker = new Worker(__dirname + "/workers/jimp.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true });
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick });
 
         worker.on("message", (img) => {
           if (img == null) reject("Null image");
@@ -70,6 +71,7 @@ module.exports = function(imageMagick) {
             frameSkip: 1,
             speed: 1,
             jimp: false,
+            imageMagick,
           });
 
           worker.on("message", async (img) => {
@@ -82,7 +84,7 @@ module.exports = function(imageMagick) {
         }
       } else {
         let worker = new Worker(__dirname + "/workers/magick.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true });
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick });
 
         worker.on("message", (img) => {
           if (img == null) reject("Null image");
