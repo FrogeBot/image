@@ -1,12 +1,13 @@
 const { isMainThread, parentPort } = require("worker_threads");
-var gm = require("gm");
-if (process.env.USE_IMAGEMAGICK == "true") {
-  gm = gm.subClass({ imageMagick: true });
-}
-let { performMethod } = require("../exec.js");
-let { readURL } = require("../utils.js");
 
 parentPort.once("message", async (msg) => {
+  var gm = require("gm");
+  if (msg.imageMagick.toString() == "true") {
+    gm = gm.subClass({ imageMagick: true });
+  }
+  let { performMethod } = require("../exec.js")(msg.imageMagick);
+  let { readURL } = require("../utils.js")(msg.imageMagick);
+  
   if (!isMainThread) {
     try {
       let list = msg.list;

@@ -1,13 +1,7 @@
 const { GifFrame, GifUtil, GifCodec } = require("gifwrap");
 const { isMainThread, parentPort, Worker } = require("worker_threads");
 require("dotenv").config();
-var gm = require("gm");
-if (process.env.USE_IMAGEMAGICK == "true") {
-  gm = gm.subClass({ imageMagick: true });
-}
 var Jimp = require("jimp");
-
-let { readBuffer, readURL } = require("./utils.js");
 
 const os = require("os");
 const cpuCount = os.cpus().length;
@@ -16,6 +10,12 @@ let framesProcessed = 0;
 let frames = [];
 
 parentPort.once("message", async (msg) => {
+  let { readBuffer, readURL } = require("./utils.js")(msg.imageMagick);
+  var gm = require("gm");
+  if (msg.imageMagick.toString() == "true") {
+    gm = gm.subClass({ imageMagick: true });
+  }
+  
   if (!isMainThread) {
     let { imgUrl, list, frameSkip, speed, jimp } = msg;
     try {

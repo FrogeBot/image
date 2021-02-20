@@ -1,10 +1,11 @@
 const { isMainThread, parentPort } = require("worker_threads");
 var Jimp = require("jimp");
 
-let { performMethod } = require("../exec.js");
-let { jimpReadURL, readBuffer } = require("../utils.js");
 
 parentPort.once("message", async (msg) => {
+  let { performMethod } = require("../exec.js")(msg.imageMagick);
+  let { jimpReadURL, readBuffer } = require("../utils.js")(msg.imageMagick);
+  
   if (!isMainThread) {
     try {
       let list = msg.list;
