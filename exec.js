@@ -9,7 +9,7 @@ module.exports = function(imageMagick) {
 
   const { Worker } = require("worker_threads");
 
-  const { gmToBuffer, getFormat } = require("./utils.js");
+  const { gmToBuffer, getFormat } = require("./utils.js")(imageMagick);
 
   function createNewImage(w, h, bg) {
     return new Promise(async (resolve, reject) => {
