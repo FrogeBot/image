@@ -55,7 +55,7 @@ parentPort.once("message", async (msg) => {
             }
             gif.frames[i].bitmap = frameImg.bitmap;
           }
-          queueWorker(list, i, speed, gif.frames, frameSkip, jimp, cb);
+          queueWorker(list, i, speed, gif.frames, frameSkip, jimp, imageMagick, cb);
         }
       }
     } catch (e) {
@@ -67,8 +67,8 @@ parentPort.once("message", async (msg) => {
 
 let workers = [];
 
-async function queueWorker(list, i, speed, frameData, frameSkip, jimp, cb) {
-  workers.push({ list, i, speed, frameData, frameSkip, jimp, cb });
+async function queueWorker(list, i, speed, frameData, frameSkip, jimp, imageMagick, cb) {
+  workers.push({ list, i, speed, frameData, frameSkip, jimp, imageMagick, cb });
 }
 
 async function workerQueuer() {
@@ -76,17 +76,17 @@ async function workerQueuer() {
     let startConcurrent = concurrent;
     for (let i = 0; i < cpuCount - startConcurrent; i++) {
       if (workers.length == 0) return;
-      let { list, i, speed, frameData, frameSkip, jimp, cb } = workers.shift();
+      let { list, i, speed, frameData, frameSkip, jimp, imageMagick, cb } = workers.shift();
       concurrent++;
       setImmediate(() => {
-        spawnWorker(list, i, speed, frameData, frameSkip, jimp, cb);
+        spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagick, cb);
       });
     }
   }
 }
 let workerInterval = setInterval(workerQueuer, 500);
 
-async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, cb) {
+async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagick, cb) {
   let { width, height } = frameData[0].bitmap;
   let frame = await frameData[i];
   if (list == null) {
@@ -126,7 +126,7 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, cb) {
       buffer: await newImg.getBufferAsync(Jimp.AUTO),
       list,
       allowBackgrounds: i == 0 || frameData[i].disposalMethod != 1,
-      imageMagick: msg.imageMagick,
+      imageMagick,
     });
 
     worker.on("message", async (img) => {
