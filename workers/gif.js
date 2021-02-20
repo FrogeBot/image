@@ -10,7 +10,7 @@ let framesProcessed = 0;
 let frames = [];
 
 parentPort.once("message", async (msg) => {
-  let { readBuffer, readURL } = require("./utils.js")(msg.imageMagick);
+  let { readBuffer, readURL } = require("../utils.js")(msg.imageMagick);
   var gm = require("gm");
   if (msg.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
