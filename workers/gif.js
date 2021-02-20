@@ -9,15 +9,21 @@ let concurrent = 0;
 let framesProcessed = 0;
 let frames = [];
 
-parentPort.once("message", async (msg) => {
-  let { readBuffer, readURL } = require("../utils.js")(msg.imageMagick);
-  var gm = require("gm");
-  if (msg.imageMagick.toString() == "true") {
-    gm = gm.subClass({ imageMagick: true });
-  }
+let readBuffer, readURL
 
+parentPort.once("message", async (msg) => {
   if (!isMainThread) {
-    let { imgUrl, list, frameSkip, speed, jimp } = msg;
+    let { imgUrl, list, frameSkip, speed, jimp, imageMagick } = msg;
+
+    let frogeImage = require("../utils.js")(msg.imageMagick);
+    readBuffer = frogeImage.readBuffer;
+    readURL = frogeImage.readURL;
+
+    var gm = require("gm");
+    if (msg.imageMagick.toString() == "true") {
+      gm = gm.subClass({ imageMagick: true });
+    }
+  
     try {
       const codec = new GifCodec();
       let gif = await codec.decodeGif(await readURL(imgUrl));
