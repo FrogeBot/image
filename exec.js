@@ -152,7 +152,7 @@ module.exports = function(imageMagick) {
                   params[4] < 0 ? "+" : "-"
                 }${params[4]}`
               )
-              .background(params[2]);
+              .background(allowBackgrounds ? params[2] : "transparent");
           }
           resolve(newImg); // Resolve image
         }
