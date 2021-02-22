@@ -24,5 +24,7 @@
     "sharp": "^0.27.1",
     "twemoji-parser": "^13.0.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "dotenv": "^8.2.0"
+  }
 }

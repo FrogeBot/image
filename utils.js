@@ -1,8 +1,16 @@
+let options = {
+  imageMagick: false,
+  maxImageSize: 2048,
+  maxGifSize: 1024,
+}
+
 // Exports
-module.exports = function(imageMagick) {
+module.exports = function(opts) {
+  Object.assign(options, opts)
+
   var Jimp = require("jimp");
   var gm = require("gm");
-  if (imageMagick.toString() == "true") {
+  if (options.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
   }
   const request = require("request");
@@ -29,10 +37,10 @@ module.exports = function(imageMagick) {
     });
   }
 
-  function readURL(imgUrl, useWebp = true, as) {
+  function readURL(imgUrl, useWebp = true, as = undefined) {
     return new Promise(async (resolve, reject) => {
       try {
-        let maxSize = Number(process.env.MAX_IMG_SIZE);
+        let maxSize = Number(options.maxImageSize);
         gm(request(imgUrl)).size(
           { bufferStream: true },
           async function (err, size) {
@@ -40,10 +48,12 @@ module.exports = function(imageMagick) {
               //console.log(err)
               reject(err);
             } else {
-              await this.resize(
-                maxSize > size.width ? size.width : maxSize,
-                maxSize > size.height ? size.height : maxSize
-              );
+              if(maxSize < size.width || maxSize < size.height) {
+                await this.resize(
+                  maxSize > size.width ? size.width : maxSize,
+                  maxSize > size.height ? size.height : maxSize
+                );
+              }
               resolve(await gmToBuffer(this, useWebp, as));
             }
           }
@@ -56,19 +66,11 @@ module.exports = function(imageMagick) {
   function jimpReadURL(imgUrl) {
     return new Promise(async (resolve, reject) => {
       try {
-        if ((await getFormat(imgUrl)) == "WEBP") {
-          Jimp.read(await readURL(imgUrl, false))
-            .then(async (img) => {
-              resolve(img);
-            })
-            .catch(reject);
-        } else {
-          Jimp.read(imgUrl)
-            .then(async (img) => {
-              resolve(img);
-            })
-            .catch(reject);
-        }
+        Jimp.read(await readURL(imgUrl, false, undefined))
+        .then(async (img) => {
+          resolve(img);
+        })
+        .catch(reject);
       } catch (e) {
         reject(e);
       }

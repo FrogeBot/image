@@ -1,15 +1,23 @@
+let options = {
+  imageMagick: false,
+  maxImageSize: 2048,
+  maxGifSize: 1024,
+}
+
 // Exports
-module.exports = function(imageMagick) {
+module.exports = function(opts) {
+  Object.assign(options, opts)
+
   var Jimp = require("jimp");
   var sharp = require("sharp");
   var gm = require("gm");
-  if (imageMagick.toString() == "true") {
+  if (options.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
   }
 
   const { Worker } = require("worker_threads");
 
-  const { gmToBuffer, getFormat, readBuffer } = require("./utils.js")(imageMagick);
+  const { gmToBuffer, getFormat, readBuffer } = require("./utils.js")(options.imageMagick);
 
   function createNewImage(w, h, bg) {
     return new Promise(async (resolve, reject) => {
@@ -37,7 +45,8 @@ module.exports = function(imageMagick) {
             frameSkip: 1,
             speed: 1,
             jimp: true,
-            imageMagick,
+            imageMagick: options.imageMagick,
+            maxGifSize: options.maxGifSize,
           });
 
           worker.on("message", async (img) => {
@@ -50,7 +59,7 @@ module.exports = function(imageMagick) {
         }
       } else {
         let worker = new Worker(__dirname + "/workers/jimp.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick });
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick: options.imageMagick });
 
         worker.on("message", (img) => {
           if (img == null) reject("Null image");
@@ -71,7 +80,8 @@ module.exports = function(imageMagick) {
             frameSkip: 1,
             speed: 1,
             jimp: false,
-            imageMagick,
+            imageMagick: options.imageMagick,
+            maxGifSize: options.maxGifSize,
           });
 
           worker.on("message", async (img) => {
@@ -84,7 +94,7 @@ module.exports = function(imageMagick) {
         }
       } else {
         let worker = new Worker(__dirname + "/workers/magick.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick });
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick: options.imageMagick });
 
         worker.on("message", (img) => {
           if (img == null) reject("Null image");
