@@ -3,8 +3,8 @@ var Jimp = require("jimp");
 
 
 parentPort.once("message", async (msg) => {
-  let { performMethod } = require("../exec.js")(msg.imageMagick);
-  let { jimpReadURL, readBuffer } = require("../utils.js")(msg.imageMagick);
+  let { performMethod } = require("../exec.js")(msg.options);
+  let { jimpReadURL, readBuffer } = require("../utils.js")(msg.options);
   
   if (!isMainThread) {
     try {

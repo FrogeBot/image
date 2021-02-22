@@ -5,8 +5,8 @@ parentPort.once("message", async (msg) => {
   if (msg.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
   }
-  let { performMethod } = require("../exec.js")(msg.imageMagick);
-  let { readURL } = require("../utils.js")(msg.imageMagick);
+  let { performMethod } = require("../exec.js")(msg.options);
+  let { readURL } = require("../utils.js")(msg.options);
   
   if (!isMainThread) {
     try {

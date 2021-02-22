@@ -17,7 +17,7 @@ module.exports = function(opts) {
 
   const { Worker } = require("worker_threads");
 
-  const { gmToBuffer, getFormat, readBuffer } = require("./utils.js")(options.imageMagick);
+  const { gmToBuffer, getFormat, readBuffer } = require("./utils.js")(options);
 
   function createNewImage(w, h, bg) {
     return new Promise(async (resolve, reject) => {
@@ -45,8 +45,7 @@ module.exports = function(opts) {
             frameSkip: 1,
             speed: 1,
             jimp: true,
-            imageMagick: options.imageMagick,
-            maxGifSize: options.maxGifSize,
+            options,
           });
 
           worker.on("message", async (img) => {
@@ -59,7 +58,7 @@ module.exports = function(opts) {
         }
       } else {
         let worker = new Worker(__dirname + "/workers/jimp.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick: options.imageMagick });
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
 
         worker.on("message", (img) => {
           if (img == null) reject("Null image");
@@ -80,8 +79,7 @@ module.exports = function(opts) {
             frameSkip: 1,
             speed: 1,
             jimp: false,
-            imageMagick: options.imageMagick,
-            maxGifSize: options.maxGifSize,
+            options,
           });
 
           worker.on("message", async (img) => {
@@ -94,7 +92,7 @@ module.exports = function(opts) {
         }
       } else {
         let worker = new Worker(__dirname + "/workers/magick.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true, imageMagick: options.imageMagick });
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
 
         worker.on("message", (img) => {
           if (img == null) reject("Null image");

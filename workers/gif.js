@@ -12,11 +12,12 @@ let readBuffer, readURL
 
 parentPort.once("message", async (msg) => {
   if (!isMainThread) {
-    let { imgUrl, list, frameSkip, speed, jimp, imageMagick, maxGifSize } = msg;
-    maxGifSize = Number(maxGifSize)
+    let { imgUrl, list, frameSkip, speed, jimp, options } = msg;
+    let imageMagick = options.imageMagick
+    maxGifSize = Number(options.maxGifSize)
     if(Number.isNaN(maxGifSize)) maxGifSize = Infinity
 
-    let frogeImage = require("../utils.js")(msg.imageMagick);
+    let frogeImage = require("../utils.js")(options);
     readBuffer = frogeImage.readBuffer;
     readURL = frogeImage.readURL;
 
