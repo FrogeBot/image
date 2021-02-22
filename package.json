@@ -1,6 +1,6 @@
 {
   "name": "@frogebot/image",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Image processing module, designed for FrogeBot",
   "main": "index.js",
   "scripts": {
