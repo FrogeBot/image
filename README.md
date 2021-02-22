@@ -4,14 +4,19 @@ Image processing module, designed for FrogeBot
 ----
 
 ## Installation
-Using GraphicsMagick:
-```js
-let frogeImage = require("@frogebot/image")();
+```bash
+$ npm i @frogebot/image
 ```
-Using ImageMagick:
+## Use
 ```js
-let frogeImage = require("@frogebot/image")(true);
+let frogeImage = require("@frogebot/image")(options);
 ```
+### Options
+`imageMagick` (bool, optional) - If set to true, will use ImageMagick instead of GraphicsMagick
+
+`maxImageSize` (int) - The maximum size for input images
+
+`maxGifSize` (int) - The maximum size for input GIFs
 
 ## Manipulating images
 The `exec` and `execGM` functions return image buffers.
