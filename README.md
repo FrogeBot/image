@@ -24,14 +24,18 @@ await frogeImage.execGM(imageUrl, list)
 ```
 #### Custom Methods
 These functions can access any methods in their respective libraries and also certain custom methods.
-addBackground: Adds a coloured background and applies size change and image offset.
-jpeg: JPEG-ifies image (GraphicsMagick/ImageMagick only)
-square: Crops image to square (jimp only)
-composite: Uses sharp for compositing images, works both in Jimp and GraphicsMagick/ImageMagick 
 
-Example implementation
+**addBackground:** Adds a coloured background and applies size change and image offset.
+
+**jpeg:** JPEG-ifies image (GraphicsMagick/ImageMagick only)
+
+**square:** Crops image to square (jimp only)
+
+**composite:** Uses sharp for compositing images, works both in Jimp and GraphicsMagick/ImageMagick 
+
+### Example implementation
 ```js
-let imageUrl = https://github.com/FrogeBot/frogeBot/blob/master/assets/icon.png?raw=true
+let imageUrl = "https://github.com/FrogeBot/frogeBot/blob/master/assets/icon.png?raw=true"
 let list = [
   ["explode", [1.5]],
   ["jpeg", [10]]
