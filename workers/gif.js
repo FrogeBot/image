@@ -44,7 +44,7 @@ parentPort.once("message", async (msg) => {
       for (let i = 0; i < gif.frames.length; i++) {
         if (i % frameSkip == 0) {
           if (
-            gif.frames[i].disposalMethod == 1 &&
+            gif.frames[i].disposalMethod <= 1 &&
             frameSkip > 1 &&
             i >= frameSkip
           ) {
@@ -131,7 +131,7 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagi
     worker.postMessage({
       buffer: await newImg.getBufferAsync(Jimp.AUTO),
       list,
-      allowBackgrounds: i == 0 || frameData[i].disposalMethod != 1,
+      allowBackgrounds: i == 0 || frameData[i].disposalMethod > 1,
       imageMagick,
     });
 
