@@ -2,7 +2,7 @@ const { isMainThread, parentPort } = require("worker_threads");
 
 parentPort.once("message", async (msg) => {
   var gm = require("gm");
-  if (msg.imageMagick.toString() == "true") {
+  if (msg.options.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
   }
   let { performMethod } = require("../exec.js")(msg.options);
