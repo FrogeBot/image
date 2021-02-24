@@ -13,16 +13,14 @@ let readBuffer, readURL
 parentPort.once("message", async (msg) => {
   if (!isMainThread) {
     let { imgUrl, list, frameSkip, speed, jimp, options } = msg;
-    let imageMagick = options.imageMagick
-    maxGifSize = Number(options.maxGifSize)
-    if(Number.isNaN(maxGifSize)) maxGifSize = Infinity
+    if(Number.isNaN(options.maxGifSize)) options.maxGifSize = Infinity
 
     let frogeImage = require("../utils.js")(options);
     readBuffer = frogeImage.readBuffer;
     readURL = frogeImage.readURL;
 
     var gm = require("gm");
-    if (msg.imageMagick.toString() == "true") {
+    if (options.imageMagick.toString() == "true") {
       gm = gm.subClass({ imageMagick: true });
     }
   
@@ -63,7 +61,7 @@ parentPort.once("message", async (msg) => {
             }
             gif.frames[i].bitmap = frameImg.bitmap;
           }
-          queueWorker(list, i, speed, gif.frames, frameSkip, jimp, imageMagick, maxGifSize, cb);
+          queueWorker(list, i, speed, gif.frames, frameSkip, jimp, options, cb);
         }
       }
     } catch (e) {
@@ -75,8 +73,8 @@ parentPort.once("message", async (msg) => {
 
 let workers = [];
 
-async function queueWorker(list, i, speed, frameData, frameSkip, jimp, imageMagick, maxGifSize, cb) {
-  workers.push({ list, i, speed, frameData, frameSkip, jimp, imageMagick, maxGifSize, cb });
+async function queueWorker(list, i, speed, frameData, frameSkip, jimp, options, cb) {
+  workers.push({ list, i, speed, frameData, frameSkip, jimp, options, cb });
 }
 
 async function workerQueuer() {
@@ -84,17 +82,17 @@ async function workerQueuer() {
     let startConcurrent = concurrent;
     for (let i = 0; i < cpuCount - startConcurrent; i++) {
       if (workers.length == 0) return;
-      let { list, i, speed, frameData, frameSkip, jimp, imageMagick, maxGifSize, cb } = workers.shift();
+      let { list, i, speed, frameData, frameSkip, jimp, options, cb } = workers.shift();
       concurrent++;
       setImmediate(() => {
-        spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagick, maxGifSize, cb);
+        spawnWorker(list, i, speed, frameData, frameSkip, jimp, options, cb);
       });
     }
   }
 }
 let workerInterval = setInterval(workerQueuer, 500);
 
-async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagick, maxGifSize, cb) {
+async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, options, cb) {
   let { width, height } = frameData[0].bitmap;
   let frame = await frameData[i];
   if (list == null) {
@@ -103,8 +101,8 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagi
       frame.xOffset,
       frame.yOffset
     );
-    if (newImg.bitmap.width > maxGifSize || newImg.bitmap.height > maxGifSize) {
-      await newImg.scaleToFit(maxGifSize, maxGifSize);
+    if (newImg.bitmap.width > options.maxGifSize || newImg.bitmap.height > options.maxGifSize) {
+      await newImg.scaleToFit(options.maxGifSize, options.maxGifSize);
     }
     let newFrame = new GifFrame(newImg.bitmap, {
       disposalMethod: frame.disposalMethod,
@@ -122,8 +120,8 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagi
       frame.xOffset,
       frame.yOffset
     );
-    if (newImg.bitmap.width > maxGifSize || newImg.bitmap.height > maxGifSize) {
-      await newImg.scaleToFit(maxGifSize, maxGifSize);
+    if (newImg.bitmap.width > options.maxGifSize || newImg.bitmap.height > options.maxGifSize) {
+      await newImg.scaleToFit(options.maxGifSize, options.maxGifSize);
     }
     let worker = new Worker(
       __dirname + `/${jimp ? "jimp" : "magick"}.js`
@@ -132,7 +130,7 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, imageMagi
       buffer: await newImg.getBufferAsync(Jimp.AUTO),
       list,
       allowBackgrounds: i == 0 || frameData[i].disposalMethod == 2,
-      imageMagick,
+      options,
     });
 
     worker.on("message", async (img) => {
