@@ -20,11 +20,12 @@ parentPort.once("message", async (msg) => {
     readURL = frogeImage.readURL;
 
     var gm = require("gm");
-    if (options.imageMagick.toString() == "true") {
-      gm = gm.subClass({ imageMagick: true });
-    }
-  
+
     try {
+      if (options.imageMagick.toString() == "true") {
+        gm = gm.subClass({ imageMagick: true });
+      }
+      
       const codec = new GifCodec();
       let gif = await codec.decodeGif(await readURL(imgUrl));
       async function cb() {
