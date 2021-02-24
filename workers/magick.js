@@ -1,16 +1,23 @@
 const { isMainThread, parentPort } = require("worker_threads");
 
 parentPort.once("message", async (msg) => {
+  if(!msg.options) {
+    msg.options = {
+      imageMagick: false,
+      maxImageSize: 2048,
+      maxGifSize: 1024,
+    }
+  }
+  
+  var gm = require("gm");
+  if (msg.options.imageMagick.toString() == "true") {
+    gm = gm.subClass({ imageMagick: true });
+  }
   let { performMethod } = require("../exec.js")(msg.options);
   let { readURL } = require("../utils.js")(msg.options);
   
-  var gm = require("gm");
   if (!isMainThread) {
     try {
-      if (msg.options.imageMagick.toString() == "true") {
-        gm = gm.subClass({ imageMagick: true });
-      }
-
       let list = msg.list;
       if (msg.imgUrl) {
         let imgUrl = msg.imgUrl;

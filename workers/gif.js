@@ -13,6 +13,14 @@ let readBuffer, readURL
 parentPort.once("message", async (msg) => {
   if (!isMainThread) {
     let { imgUrl, list, frameSkip, speed, jimp, options } = msg;
+    if(!options) {
+      options = {
+        imageMagick: false,
+        maxImageSize: 2048,
+        maxGifSize: 1024,
+      }
+    }
+    
     if(Number.isNaN(options.maxGifSize)) options.maxGifSize = Infinity
 
     let frogeImage = require("../utils.js")(options);
@@ -20,12 +28,11 @@ parentPort.once("message", async (msg) => {
     readURL = frogeImage.readURL;
 
     var gm = require("gm");
-
+    if (options.imageMagick.toString() == "true") {
+      gm = gm.subClass({ imageMagick: true });
+    }
+  
     try {
-      if (options.imageMagick.toString() == "true") {
-        gm = gm.subClass({ imageMagick: true });
-      }
-      
       const codec = new GifCodec();
       let gif = await codec.decodeGif(await readURL(imgUrl));
       async function cb() {
