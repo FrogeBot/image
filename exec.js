@@ -9,7 +9,7 @@ module.exports = function(opts) {
   Object.assign(options, opts)
 
   var Jimp = require("jimp");
-  var sharp = require("sharp");
+  // var sharp = require("sharp");
   var gm = require("gm");
   if (options.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
@@ -101,6 +101,39 @@ module.exports = function(opts) {
       }
     });
   }
+  function execGPU(imgUrl, list) {
+    return new Promise(async (resolve, reject) => {
+      // if ((await getFormat(imgUrl)) == "GIF") {
+      //   try {
+      //     let worker = new Worker(__dirname + "/workers/gif.js");
+      //     worker.postMessage({
+      //       imgUrl,
+      //       list,
+      //       frameSkip: 1,
+      //       speed: 1,
+      //       jimp: false,
+      //       options,
+      //     });
+
+      //     worker.on("message", async (img) => {
+      //       if (img == null) reject("Null image");
+      //       resolve(Buffer.from(img));
+      //     });
+      //   } catch (e) {
+      //     //console.log(e)
+      //     reject(e);
+      //   }
+      // } else {
+        let worker = new Worker(__dirname + "/workers/gpu.js");
+        worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
+
+        worker.on("message", (img) => {
+          if (img == null) reject("Null image");
+          else resolve(Buffer.from(img));
+        });
+      // }
+    });
+  }
 
   function performMethod(img, method, params, allowBackgrounds) {
     return new Promise(async (resolve, reject) => {
@@ -114,6 +147,7 @@ module.exports = function(opts) {
             }
           }
         }
+        console.log(params)
         if (method != "composite" && img[method]) {
           // If native method
           img = await img[method](...params); // Run method function on image
@@ -183,29 +217,29 @@ module.exports = function(opts) {
           );
           resolve(newImg);
         }
-        if (method == "composite") {
-          if (img.bitmap) {
-            newImg = sharp(await img.getBufferAsync(Jimp.AUTO)).composite([
-              {
-                input: Buffer.from(params[0]),
-                top: params[2],
-                left: params[1],
-              },
-            ]);
-            let newImgJimp = readBuffer(await newImg.toBuffer());
-            resolve(newImgJimp);
-          } else {
-            newImg = sharp(await gmToBuffer(img)).composite([
-              {
-                input: Buffer.from(params[0]),
-                top: params[2],
-                left: params[1],
-              },
-            ]);
-            let newImgMagick = gm(await newImg.toBuffer());
-            resolve(newImgMagick);
-          }
-        }
+        // if (method == "composite") {
+        //   if (img.bitmap) {
+        //     newImg = sharp(await img.getBufferAsync(Jimp.AUTO)).composite([
+        //       {
+        //         input: Buffer.from(params[0]),
+        //         top: params[2],
+        //         left: params[1],
+        //       },
+        //     ]);
+        //     let newImgJimp = readBuffer(await newImg.toBuffer());
+        //     resolve(newImgJimp);
+        //   } else {
+        //     newImg = sharp(await gmToBuffer(img)).composite([
+        //       {
+        //         input: Buffer.from(params[0]),
+        //         top: params[2],
+        //         left: params[1],
+        //       },
+        //     ]);
+        //     let newImgMagick = gm(await newImg.toBuffer());
+        //     resolve(newImgMagick);
+        //   }
+        // }
       } catch (e) {
         reject(e);
       }
@@ -215,6 +249,7 @@ module.exports = function(opts) {
   return {
     exec,
     execGM,
+    execGPU,
     performMethod,
     customMethod,
   }
