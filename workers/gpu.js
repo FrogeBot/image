@@ -96,11 +96,12 @@ parentPort.once("message", async (msg) => {
         }
         img.bitmap.data = Buffer.from(render.getPixels())
         parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
+        process.exit(0);
       }
 
     } catch (e) {
-      console.log(e);
       parentPort.postMessage(null);
+      process.exit(1);
     }
   }
 });

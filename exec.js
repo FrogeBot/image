@@ -102,7 +102,34 @@ module.exports = function(opts) {
       }
     });
   }
-  function execGPU(imgUrl, list) {
+
+  const Queue = require("./queue.js");
+  const gpuQueue = new Queue();
+  async function execGPU(imgUrl, list, interaction) {
+    return gpuQueue.enqueue(() => runGpuOperation(imgUrl, list), (index, size) => {
+      if(index == 0) {
+        interaction.editReply({
+          content: process.env.MSG_PROCESSING,
+          embeds: [],
+        });
+      } else {
+        interaction.editReply({
+          content: process.env.MSG_WAITING,
+          embeds: [{
+            title: "Waiting in the queue...",
+            description: `<@${interaction.member.id}> - ${process.env.MSG_IN_QUEUE} ${index}/${size}`,
+            color: Number(process.env.EMBED_COLOUR),
+            timestamp: new Date(),
+            author: {
+              name: process.env.BOT_NAME,
+              icon_url: interaction.client.user.displayAvatarURL(),
+            },
+          }],
+        });
+      }
+    });
+  }
+  function runGpuOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
@@ -120,6 +147,9 @@ module.exports = function(opts) {
             if (img == null) reject("Null image");
             resolve(Buffer.from(img));
           });
+          worker.on("error", err => {
+            reject("Process error")
+          })
         } catch (e) {
           //console.log(e)
           reject(e);
@@ -131,6 +161,7 @@ module.exports = function(opts) {
         worker.on("message", (img) => {
           if (img == null) reject("Null image");
           else resolve(Buffer.from(img));
+          worker.terminate();
         });
       }
     });

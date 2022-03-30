@@ -46,10 +46,11 @@ parentPort.once("message", async (msg) => {
           .encodeGif(frames.filter((f) => f != undefined))
           .then((gif) => {
             parentPort.postMessage(gif.buffer);
+            process.exit(0);
           })
           .catch((e) => {
-            console.log(e);
             parentPort.postMessage(null);
+            process.exit(1);
           });
       }
       framesProcessed = 0;
@@ -74,11 +75,15 @@ parentPort.once("message", async (msg) => {
             gif.frames[i].bitmap = frameImg.bitmap;
           }
           await renderFrame(list, i, speed, gif.frames, frameSkip, lib, options, cb);
+          framesProcessed++;
+          console.log(framesProcessed)
+          console.log(frameData.length)
+          if (framesProcessed >= gif.frames.length) cb();
         }
       }
     } catch (e) {
-      console.log(e);
       parentPort.postMessage(null);
+      process.exit(1);
     }
   }
 });
@@ -110,6 +115,4 @@ async function renderFrame(list, i, speed, frameData, frameSkip, lib, options, c
   });
   GifUtil.quantizeDekker(newFrame);
   frames[i] = newFrame;
-  framesProcessed++;
-  if (framesProcessed >= frameData.length) cb();
 }
