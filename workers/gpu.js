@@ -1,22 +1,21 @@
 const { isMainThread, parentPort } = require("worker_threads");
 
 const { GPU } = require('gpu.js');
-const gpu = new GPU();
-const render = gpu.createKernel(function(bitmap, width, height, method, data, allowBackgrounds) {
-  let r = bitmap[( this.thread.y * width + this.thread.x ) * 4];
-  let g = bitmap[( this.thread.y * width + this.thread.x ) * 4 + 1];
-  let b = bitmap[( this.thread.y * width + this.thread.x ) * 4 + 2];
-  let a = bitmap[( this.thread.y * width + this.thread.x ) * 4 + 3];
-  switch (method) {
-    case "invert": 
-      r = 255 - r; 
-      g = 255 - g; 
-      b = 255 - b;
-      break;
+
+function toArrayBuffer(buf) {
+  const ab = new ArrayBuffer(buf.length);
+  const view = new Uint8Array(ab);
+  for (let i = 0; i < buf.length; ++i) {
+      view[i] = buf[i];
   }
-  console.log(r, g, b, a)
-  this.color(r, g, b, a);
-})
+  return ab;
+}
+
+const methodList = [
+  'invert',
+  'greyscale',
+  'sepia'
+]
 
 parentPort.once("message", async (msg) => {
   if(!msg.options) {
@@ -29,6 +28,7 @@ parentPort.once("message", async (msg) => {
   
   if (!isMainThread) {
     try {
+      var Jimp = require("jimp");
       let { jimpReadURL } = require("../utils.js")(msg.options);
 
       let list = msg.list;
@@ -36,51 +36,66 @@ parentPort.once("message", async (msg) => {
         let imgUrl = msg.imgUrl;
         let img = await jimpReadURL(imgUrl);
         
-        render.setOutput([img.bitmap.width, img.bitmap.height]).setGraphical(true);
+        const gpu = new GPU();
+        const render = gpu.createKernel(function(bitmap, method, data) {
+          var x = this.thread.x,
+              y = this.thread.y;
+          let n = 4 * ( x + this.constants.w * (this.constants.h - y) );
+          let r = bitmap[n]
+          let g = bitmap[n + 1]
+          let b = bitmap[n + 2]
+          let a = bitmap[n + 3]
+          switch(method) {
+            case 0: // invert
+              r = 255 - r;
+              g = 255 - g;
+              b = 255 - b;
+            case 1: // greyscale
+              let avg = (r+g+b)/3;
+              r = avg;
+              g = avg
+              b = avg
+            case 2: // sepia
+              r = (r * .393) + (g *.769) + (b * .189)
+              g = (r * .349) + (g *.686) + (b * .168)
+              b = (r * .272) + (g *.534) + (b * .131)
+          }
+          this.color(r/256, g/256, b/256, a/256);
+        })
+        .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
+        .setGraphical(true)
+        .setDynamicArguments(true)
+        .setOutput([img.bitmap.width, img.bitmap.height]);
       
-        console.log(img.bitmap.data)
         for (let i = 0; i < list.length; i++) {
           // Loop through actions in list
           await render(
-            img.bitmap.data,
-            img.bitmap.width,
-            img.bitmap.height,
-            list[i][0],
-            list[i][1],
-            msg.allowBackgrounds
+            new Uint8ClampedArray(toArrayBuffer(img.bitmap.data)),
+            methodList.indexOf(list[i][0]),
+            list[i][1].length > 0 ? list[i][1] : [0]
           ); // Perform each in succecssion
         }
-        console.log(render.getPixels())
-        img.bitmap.data = Buffer.from(render.getPixels());
-        img.quality(60);
-        img.format({ bufferStream: true }, function (err, format) {
-          this.toBuffer(format, function (err, buffer) {
-            if (!err) {
-              parentPort.postMessage(buffer); // Resolve image
-            } else console.log(err);
-          });
-        });
+        img.bitmap.data = Buffer.from(render.getPixels())
+        parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
       } else if (msg.buffer) {
-        let buffer = Buffer.from(msg.buffer);
-        // Get image from buffer
-        let img = await gm(buffer);
+        let img = Buffer.from(msg.buffer);
+        const gpu = new GPU();
+        const render = gpu.createKernel(kernelFunc)
+        .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
+        .setGraphical(true)
+        .setDynamicArguments(true)
+        .setOutput([img.bitmap.width, img.bitmap.height]);
+      
         for (let i = 0; i < list.length; i++) {
           // Loop through actions in list
-          img = await performMethod(
-            img,
-            list[i][0],
-            list[i][1],
-            msg.allowBackgrounds
+          await render(
+            new Uint8ClampedArray(toArrayBuffer(img.bitmap.data)),
+            methodList.indexOf(list[i][0]),
+            list[i][1].length > 0 ? list[i][1] : [0]
           ); // Perform each in succecssion
         }
-        img.quality(60);
-        img.format({ bufferStream: true }, function (err, format) {
-          this.toBuffer(format, function (err, buffer) {
-            if (!err) {
-              parentPort.postMessage(buffer); // Resolve image
-            } else console.log(err);
-          });
-        });
+        img.bitmap.data = Buffer.from(render.getPixels())
+        parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
       }
 
     } catch (e) {
@@ -89,3 +104,34 @@ parentPort.once("message", async (msg) => {
     }
   }
 });
+
+function kernelFunc(bitmap, method, data) {
+  var x = this.thread.x,
+      y = this.thread.y;
+  let n = 4 * ( x + this.constants.w * (this.constants.h - y) );
+  let r = bitmap[n]
+  let g = bitmap[n + 1]
+  let b = bitmap[n + 2]
+  let a = bitmap[n + 3]
+  switch(method) {
+    case 0: // invert
+      r = 255 - r;
+      g = 255 - g;
+      b = 255 - b;
+    case 1: // greyscale
+      let avg = (r+g+b)/3;
+      r = avg;
+      g = avg
+      b = avg
+    case 2: // sepia
+      r = (r * .393) + (g *.769) + (b * .189)
+      g = (r * .349) + (g *.686) + (b * .168)
+      b = (r * .272) + (g *.534) + (b * .131)
+  }
+  this.color(r/256, g/256, b/256, a/256);
+}
+
+module.exports = {
+  kernelFunc,
+  methodList
+}

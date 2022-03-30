@@ -2,6 +2,7 @@ let options = {
   imageMagick: false,
   maxImageSize: 2048,
   maxGifSize: 1024,
+  maxGifFrames: 100,
 }
 
 // Exports
@@ -44,7 +45,7 @@ module.exports = function(opts) {
             list,
             frameSkip: 1,
             speed: 1,
-            jimp: true,
+            lib: 'jimp',
             options,
           });
 
@@ -78,7 +79,7 @@ module.exports = function(opts) {
             list,
             frameSkip: 1,
             speed: 1,
-            jimp: false,
+            lib: 'magick',
             options,
           });
 
@@ -103,27 +104,27 @@ module.exports = function(opts) {
   }
   function execGPU(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
-      // if ((await getFormat(imgUrl)) == "GIF") {
-      //   try {
-      //     let worker = new Worker(__dirname + "/workers/gif.js");
-      //     worker.postMessage({
-      //       imgUrl,
-      //       list,
-      //       frameSkip: 1,
-      //       speed: 1,
-      //       jimp: false,
-      //       options,
-      //     });
+      if ((await getFormat(imgUrl)) == "GIF") {
+        try {
+          let worker = new Worker(__dirname + "/workers/gpugif.js");
+          worker.postMessage({
+            imgUrl,
+            list,
+            frameSkip: 1,
+            speed: 1,
+            lib: 'gpu',
+            options,
+          });
 
-      //     worker.on("message", async (img) => {
-      //       if (img == null) reject("Null image");
-      //       resolve(Buffer.from(img));
-      //     });
-      //   } catch (e) {
-      //     //console.log(e)
-      //     reject(e);
-      //   }
-      // } else {
+          worker.on("message", async (img) => {
+            if (img == null) reject("Null image");
+            resolve(Buffer.from(img));
+          });
+        } catch (e) {
+          //console.log(e)
+          reject(e);
+        }
+      } else {
         let worker = new Worker(__dirname + "/workers/gpu.js");
         worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
 
@@ -131,7 +132,7 @@ module.exports = function(opts) {
           if (img == null) reject("Null image");
           else resolve(Buffer.from(img));
         });
-      // }
+      }
     });
   }
 

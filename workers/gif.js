@@ -12,7 +12,7 @@ let readBuffer, readURL
 
 parentPort.once("message", async (msg) => {
   if (!isMainThread) {
-    let { imgUrl, list, frameSkip, speed, jimp, options } = msg;
+    let { imgUrl, list, frameSkip, speed, lib, options } = msg;
     if(!options) {
       options = {
         imageMagick: false,
@@ -69,7 +69,7 @@ parentPort.once("message", async (msg) => {
             }
             gif.frames[i].bitmap = frameImg.bitmap;
           }
-          queueWorker(list, i, speed, gif.frames, frameSkip, jimp, options, cb);
+          queueWorker(list, i, speed, gif.frames, frameSkip, lib, options, cb);
         }
       }
     } catch (e) {
@@ -81,8 +81,8 @@ parentPort.once("message", async (msg) => {
 
 let workers = [];
 
-async function queueWorker(list, i, speed, frameData, frameSkip, jimp, options, cb) {
-  workers.push({ list, i, speed, frameData, frameSkip, jimp, options, cb });
+async function queueWorker(list, i, speed, frameData, frameSkip, lib, options, cb) {
+  workers.push({ list, i, speed, frameData, frameSkip, lib, options, cb });
 }
 
 async function workerQueuer() {
@@ -90,17 +90,17 @@ async function workerQueuer() {
     let startConcurrent = concurrent;
     for (let i = 0; i < cpuCount - startConcurrent; i++) {
       if (workers.length == 0) return;
-      let { list, i, speed, frameData, frameSkip, jimp, options, cb } = workers.shift();
+      let { list, i, speed, frameData, frameSkip, lib, options, cb } = workers.shift();
       concurrent++;
       setImmediate(() => {
-        spawnWorker(list, i, speed, frameData, frameSkip, jimp, options, cb);
+        spawnWorker(list, i, speed, frameData, frameSkip, lib, options, cb);
       });
     }
   }
 }
 let workerInterval = setInterval(workerQueuer, 500);
 
-async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, options, cb) {
+async function spawnWorker(list, i, speed, frameData, frameSkip, lib, options, cb) {
   let { width, height } = frameData[0].bitmap;
   let frame = await frameData[i];
   if (list == null) {
@@ -132,7 +132,7 @@ async function spawnWorker(list, i, speed, frameData, frameSkip, jimp, options, 
       await newImg.scaleToFit(options.maxGifSize, options.maxGifSize);
     }
     let worker = new Worker(
-      __dirname + `/${jimp ? "jimp" : "magick"}.js`
+      __dirname + `/${lib}.js`
     );
     worker.postMessage({
       buffer: await newImg.getBufferAsync(Jimp.AUTO),
