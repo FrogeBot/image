@@ -75,10 +75,6 @@ parentPort.once("message", async (msg) => {
             gif.frames[i].bitmap = frameImg.bitmap;
           }
           await renderFrame(list, i, speed, gif.frames, frameSkip, lib, options, cb);
-          framesProcessed++;
-          console.log(framesProcessed)
-          console.log(frameData.length)
-          if (framesProcessed >= gif.frames.length) cb();
         }
       }
     } catch (e) {
@@ -115,4 +111,6 @@ async function renderFrame(list, i, speed, frameData, frameSkip, lib, options, c
   });
   GifUtil.quantizeDekker(newFrame);
   frames[i] = newFrame;
+  framesProcessed += frameSkip;
+  if (framesProcessed >= frameData.length) cb();
 }
