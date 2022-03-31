@@ -83,7 +83,8 @@ const methodList = [
   'flip',
   'flop',
   'pixelate',
-  'posterize'
+  'posterize',
+  'blur'
 ]
 
 function kernelFunc(bitmap, method, data) {
@@ -131,9 +132,32 @@ function kernelFunc(bitmap, method, data) {
       b = bitmap[n + 2]
       a = bitmap[n + 3]
     case 6: // posterize
-    r = Math.round( r / 255 * data[0] ) * 255 / data[0]
-    g = Math.round( g / 255 * data[0] ) * 255 / data[0]
-    b = Math.round( b / 255 * data[0] ) * 255 / data[0]
+      r = Math.round( r / 255 * data[0] ) * 255 / data[0]
+      g = Math.round( g / 255 * data[0] ) * 255 / data[0]
+      b = Math.round( b / 255 * data[0] ) * 255 / data[0]
+    case 7: // blur (box blur not gaussian, i am lazy)
+      let rSum = 0
+      let gSum = 0
+      let bSum = 0
+      let aSum = 0
+      for(let dx = -data[0]; dx < data[0]; dx++) {
+        for(let dy = -data[0]; dy < data[0]; dy++) {
+          let newX = Math.abs(x + dx)
+          let newY = Math.abs(y + dy)
+          if(newX >= this.constants.w) newX = (this.constants.w - 1) * 2 - newX
+          if(newY >= this.constants.h) newY = (this.constants.h - 1) * 2 - newY
+          n = 4 * ( newX + this.constants.w * (this.constants.h - newY ) );
+          rSum += bitmap[n]
+          gSum += bitmap[n + 1]
+          bSum += bitmap[n + 2]
+          aSum += bitmap[n + 3]
+        }
+      }
+      let pixelCount = (2*data[0] + 1) ** 2
+      r = rSum / pixelCount
+      g = gSum / pixelCount
+      b = bSum / pixelCount
+      a = aSum / pixelCount
   }
   this.color(r/255, g/255, b/255, a/255);
 }
