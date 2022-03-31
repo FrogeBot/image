@@ -44,8 +44,8 @@ parentPort.once("message", async (msg) => {
             methodList.indexOf(list[i][0]),
             list[i][1].length > 0 ? list[i][1] : [0]
           ); // Perform each in succecssion
+          img.bitmap.data = Buffer.from(render.getPixels())
         }
-        img.bitmap.data = Buffer.from(render.getPixels())
         parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
       } else if (msg.buffer) {
         let img = Buffer.from(msg.buffer);
@@ -63,8 +63,8 @@ parentPort.once("message", async (msg) => {
             methodList.indexOf(list[i][0]),
             list[i][1].length > 0 ? list[i][1] : [0]
           ); // Perform each in succecssion
+          img.bitmap.data = Buffer.from(render.getPixels())
         }
-        img.bitmap.data = Buffer.from(render.getPixels())
         parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
         process.exit(0);
       }
@@ -81,7 +81,9 @@ const methodList = [
   'greyscale',
   'sepia',
   'flip',
-  'flop'
+  'flop',
+  'pixelate',
+  'posterize'
 ]
 
 function kernelFunc(bitmap, method, data) {
@@ -118,6 +120,20 @@ function kernelFunc(bitmap, method, data) {
       g = bitmap[n + 1]
       b = bitmap[n + 2]
       a = bitmap[n + 3]
+    case 5: // pixelate
+      x = Math.round(Math.round(x / data[0]) * data[0] - data[0]/2)
+      x = Math.max(0, Math.min(x, this.constants.w-1))
+      y = Math.round(Math.round(y / data[0]) * data[0] - data[0]/2)
+      y = Math.max(0, Math.min(y, this.constants.h-1))
+      n = 4 * ( x + this.constants.w * (this.constants.h - y) );
+      r = bitmap[n]
+      g = bitmap[n + 1]
+      b = bitmap[n + 2]
+      a = bitmap[n + 3]
+    case 6: // posterize
+    r = Math.round( r / 255 * data[0] ) * 255 / data[0]
+    g = Math.round( g / 255 * data[0] ) * 255 / data[0]
+    b = Math.round( b / 255 * data[0] ) * 255 / data[0]
   }
   this.color(r/255, g/255, b/255, a/255);
 }
