@@ -2,7 +2,6 @@ let options = {
   imageMagick: false,
   maxImageSize: 2048,
   maxGifSize: 1024,
-  maxGifFrames: 100,
 }
 
 // Exports
@@ -35,7 +34,59 @@ module.exports = function(opts) {
     });
   }
 
-  function exec(imgUrl, list) {
+  const Queue = require("./queue.js");
+  const cpuQueue = new Queue();
+  async function exec(imgUrl, list, interaction) {
+    return cpuQueue.enqueue(() => runJimpOperation(imgUrl, list), (index, size) => {
+      if(index == 0) {
+        interaction.editReply({
+          content: process.env.MSG_PROCESSING,
+          embeds: [],
+        });
+      } else {
+        interaction.editReply({
+          content: process.env.MSG_WAITING,
+          embeds: [{
+            title: "Waiting in the queue...",
+            description: `<@${interaction.member.id}> - ${process.env.MSG_IN_QUEUE} ${index}/${size}`,
+            color: Number(process.env.EMBED_COLOUR),
+            timestamp: new Date(),
+            author: {
+              name: process.env.BOT_NAME,
+              icon_url: interaction.client.user.displayAvatarURL(),
+            },
+          }],
+        });
+      }
+    });
+  }
+
+  async function execGM(imgUrl, list, interaction) {
+    return cpuQueue.enqueue(() => runMagickOperation(imgUrl, list), (index, size) => {
+      if(index == 0) {
+        interaction.editReply({
+          content: process.env.MSG_PROCESSING,
+          embeds: [],
+        });
+      } else {
+        interaction.editReply({
+          content: process.env.MSG_WAITING,
+          embeds: [{
+            title: "Waiting in the queue...",
+            description: `<@${interaction.member.id}> - ${process.env.MSG_IN_QUEUE} ${index}/${size}`,
+            color: Number(process.env.EMBED_COLOUR),
+            timestamp: new Date(),
+            author: {
+              name: process.env.BOT_NAME,
+              icon_url: interaction.client.user.displayAvatarURL(),
+            },
+          }],
+        });
+      }
+    });
+  }
+
+  function runJimpOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
@@ -69,7 +120,7 @@ module.exports = function(opts) {
     });
   }
 
-  function execGM(imgUrl, list) {
+  function runMagickOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
@@ -103,7 +154,6 @@ module.exports = function(opts) {
     });
   }
 
-  const Queue = require("./queue.js");
   const gpuQueue = new Queue();
   async function execGPU(imgUrl, list, interaction) {
     return gpuQueue.enqueue(() => runGpuOperation(imgUrl, list), (index, size) => {
@@ -144,7 +194,8 @@ module.exports = function(opts) {
           });
 
           worker.on("message", async (img) => {
-            if (img == null) reject("Null image");
+            if (img == null) return reject("Null image");
+            if (typeof img === "object" && img.error) return reject(img.error);
             resolve(Buffer.from(img));
           });
           worker.on("error", err => {
@@ -179,7 +230,7 @@ module.exports = function(opts) {
             }
           }
         }
-        console.log(params)
+        // console.log(params)
         if (method != "composite" && img[method]) {
           // If native method
           img = await img[method](...params); // Run method function on image

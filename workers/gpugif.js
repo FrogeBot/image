@@ -41,6 +41,10 @@ parentPort.once("message", async (msg) => {
     try {
       const codec = new GifCodec();
       let gif = await codec.decodeGif(await readURL(imgUrl));
+      if(options.maxGifFrames && gif.frames.length > options.maxGifFrames) {
+        parentPort.postMessage({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` });
+        process.exit(1);
+      }
       async function cb() {
         codec
           .encodeGif(frames.filter((f) => f != undefined))

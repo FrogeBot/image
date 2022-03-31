@@ -11,12 +11,6 @@ function toArrayBuffer(buf) {
   return ab;
 }
 
-const methodList = [
-  'invert',
-  'greyscale',
-  'sepia'
-]
-
 parentPort.once("message", async (msg) => {
   if(!msg.options) {
     msg.options = {
@@ -37,31 +31,7 @@ parentPort.once("message", async (msg) => {
         let img = await jimpReadURL(imgUrl);
         
         const gpu = new GPU();
-        const render = gpu.createKernel(function(bitmap, method, data) {
-          var x = this.thread.x,
-              y = this.thread.y;
-          let n = 4 * ( x + this.constants.w * (this.constants.h - y) );
-          let r = bitmap[n]
-          let g = bitmap[n + 1]
-          let b = bitmap[n + 2]
-          let a = bitmap[n + 3]
-          switch(method) {
-            case 0: // invert
-              r = 255 - r;
-              g = 255 - g;
-              b = 255 - b;
-            case 1: // greyscale
-              let avg = (r+g+b)/3;
-              r = avg;
-              g = avg
-              b = avg
-            case 2: // sepia
-              r = (r * .393) + (g *.769) + (b * .189)
-              g = (r * .349) + (g *.686) + (b * .168)
-              b = (r * .272) + (g *.534) + (b * .131)
-          }
-          this.color(r/256, g/256, b/256, a/256);
-        })
+        const render = gpu.createKernel(kernelFunc)
         .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
         .setGraphical(true)
         .setDynamicArguments(true)
@@ -106,6 +76,14 @@ parentPort.once("message", async (msg) => {
   }
 });
 
+const methodList = [
+  'invert',
+  'greyscale',
+  'sepia',
+  'flip',
+  'flop'
+]
+
 function kernelFunc(bitmap, method, data) {
   var x = this.thread.x,
       y = this.thread.y;
@@ -128,8 +106,20 @@ function kernelFunc(bitmap, method, data) {
       r = (r * .393) + (g *.769) + (b * .189)
       g = (r * .349) + (g *.686) + (b * .168)
       b = (r * .272) + (g *.534) + (b * .131)
+    case 3: // flip
+      n = 4 * ( x + this.constants.w * y );
+      r = bitmap[n]
+      g = bitmap[n + 1]
+      b = bitmap[n + 2]
+      a = bitmap[n + 3]
+    case 4: // flop
+      n = 4 * ( this.constants.w - x + this.constants.w * (this.constants.h - y) );
+      r = bitmap[n]
+      g = bitmap[n + 1]
+      b = bitmap[n + 2]
+      a = bitmap[n + 3]
   }
-  this.color(r/256, g/256, b/256, a/256);
+  this.color(r/255, g/255, b/255, a/255);
 }
 
 module.exports = {
