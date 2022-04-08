@@ -78,7 +78,6 @@ parentPort.once("message", async (msg) => {
       }
 
     } catch (e) {
-      console.log(e)
       parentPort.postMessage(null);
       process.exit(1);
     }

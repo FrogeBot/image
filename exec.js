@@ -135,8 +135,9 @@ module.exports = function(opts) {
           });
 
           worker.on("message", async (img) => {
+            worker.terminate();
             if (img == null) reject("Null image");
-            resolve(Buffer.from(img));
+            else resolve(Buffer.from(img));
           });
         } catch (e) {
           //console.log(e)
@@ -147,6 +148,7 @@ module.exports = function(opts) {
         worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
 
         worker.on("message", (img) => {
+          worker.terminate();
           if (img == null) reject("Null image");
           else resolve(Buffer.from(img));
         });
@@ -199,6 +201,7 @@ module.exports = function(opts) {
             resolve(Buffer.from(img));
           });
           worker.on("error", err => {
+            worker.terminate();
             reject("Process error")
           })
         } catch (e) {
@@ -210,9 +213,9 @@ module.exports = function(opts) {
         worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
 
         worker.on("message", (img) => {
+          worker.terminate();
           if (img == null) reject("Null image");
           else resolve(Buffer.from(img));
-          worker.terminate();
         });
       }
     });
