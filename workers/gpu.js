@@ -1,4 +1,5 @@
 const cluster = require("cluster");
+
 const { doGPUExecution } = require("../gpuUtil.js");
 
 process.on("message", async (msg) => {
@@ -12,6 +13,7 @@ process.on("message", async (msg) => {
   }
   
   if(cluster.isWorker) {
+    console.log("working")
     try {
       var Jimp = require("jimp");
       let { jimpReadURL, readBuffer } = require("../utils.js")(msg.options);
