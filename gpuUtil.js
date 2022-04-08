@@ -20,7 +20,8 @@ render
 .setDynamicOutput(true)
 .setPipeline(true)
 
-async function doGPUExecution(img, list) {
+async function doGPUExecution(img, l) {
+  let list = JSON.parse(JSON.stringify(l))
   render
   .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
   .setOutput([img.bitmap.width, img.bitmap.height]);
@@ -29,7 +30,6 @@ async function doGPUExecution(img, list) {
     // Convert data formats
     if(list[i][0] == 'composite') {
       // Composite: Jimp to Uint8ClampedArray
-      console.log(list[i][1][0]) // why did this fix a crash?
       if(list[i][1][0].data) {
         if(list[i][1][0].data.type == 'Buffer') list[i][2] = new Uint8ClampedArray(list[i][1][0].data.data);
         else list[i][2] = new Uint8ClampedArray(toArrayBuffer(list[i][1][0].data));

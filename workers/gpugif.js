@@ -30,8 +30,8 @@ process.once("message", async (msg) => {
       const codec = new GifCodec();
 
       let img;
-      if (msg.imgUrl) {
-        img = await readURL(msg.imgUrl);
+      if (imgUrl) {
+        img = await readURL(imgUrl);
       } else if (msg.buffer) {
         img = await readBuffer(Buffer.from(msg.buffer));
       }
