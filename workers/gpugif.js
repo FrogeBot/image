@@ -38,7 +38,7 @@ process.once("message", async (msg) => {
 
       let gif = await codec.decodeGif(img);
       if(options.maxGifFrames && gif.frames.length > options.maxGifFrames) {
-        process.send({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` })
+        return process.send({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` })
       }
       async function cb() {
         if(framesProcessed < gif.frames.length) return
