@@ -11,6 +11,18 @@ function toArrayBuffer(buf) {
   return ab;
 }
 
+const { createCanvas } = require('canvas')
+        
+const canvas = createCanvas(512,512)
+const ctx = canvas.getContext('2d')
+const gpu = new GPU({ canvas });
+const render = gpu.createKernel(kernelFunc)
+
+render
+.setGraphical(true)
+.setDynamicArguments(true)
+.setPipeline(true)
+
 parentPort.once("message", async (msg) => {
   if(!msg.options) {
     msg.options = {
@@ -29,12 +41,12 @@ parentPort.once("message", async (msg) => {
       if (msg.imgUrl) {
         let imgUrl = msg.imgUrl;
         let img = await jimpReadURL(imgUrl);
-        
-        const gpu = new GPU();
-        const render = gpu.createKernel(kernelFunc)
-        .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
+
+        render
         .setGraphical(true)
         .setDynamicArguments(true)
+        .setPipeline(true)
+        .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
         .setOutput([img.bitmap.width, img.bitmap.height]);
       
         for (let i = 0; i < list.length; i++) {
@@ -50,18 +62,16 @@ parentPort.once("message", async (msg) => {
             new Uint8ClampedArray(toArrayBuffer(img.bitmap.data)),
             methodList.indexOf(list[i][0]),
             list[i][1].length > 0 ? list[i][1] : [0],
-            list[i][2].length > 0 ? list[i][2] : [0]
+            (list[i][2] && list[i][2].length) > 0 ? list[i][2] : [0]
           ); // Perform each in succecssion
           img.bitmap.data = Buffer.from(render.getPixels())
         }
         parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
       } else if (msg.buffer) {
         let img = Buffer.from(msg.buffer);
-        const gpu = new GPU();
-        const render = gpu.createKernel(kernelFunc)
+
+        render
         .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
-        .setGraphical(true)
-        .setDynamicArguments(true)
         .setOutput([img.bitmap.width, img.bitmap.height]);
       
         for (let i = 0; i < list.length; i++) {
