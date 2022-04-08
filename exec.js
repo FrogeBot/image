@@ -205,6 +205,7 @@ module.exports = function(opts) {
           });
 
           worker.on("message", async (img) => {
+            worker.kill();
             if (img == null) return reject("Null image");
             if (typeof img === "object" && img.error) return reject(img.error);
             if(imgBuffer.length/2 > img.length) reject("GIF failed to render. Try again later")
@@ -214,6 +215,9 @@ module.exports = function(opts) {
             console.log(err)
             worker.kill();
             reject("Process error")
+          })
+          worker.on("exit", () => {
+            reject("Process exited unexpectedly")
           })
         } catch (e) {
           //console.log(e)
@@ -230,9 +234,18 @@ module.exports = function(opts) {
 
         worker.on("message", (img) => {
           worker.kill();
-          if (img == null) reject("Null image");
+          if (img == null) return reject("Null image");
+          if (typeof img === "object" && img.error) return reject(img.error);
           else resolve(Buffer.from(img));
         });
+        worker.on("error", err => {
+          console.log(err)
+          worker.kill();
+          reject("Process error")
+        })
+        worker.on("exit", () => {
+          reject("Process exited unexpectedly")
+        })
       }
     });
   }
