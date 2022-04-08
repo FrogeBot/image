@@ -8,7 +8,7 @@ const { doGPUExecution } = require("../gpuUtil.js");
 
 let framesProcessed = 0;
 let frames = [];
-process.on("message", async (msg) => {
+process.once("message", async (msg) => {
   if(cluster.isWorker) {
     var Jimp = require("jimp");
     let { imgUrl, list, frameSkip, speed, lib, options } = msg;
@@ -39,7 +39,6 @@ process.on("message", async (msg) => {
       let gif = await codec.decodeGif(img);
       if(options.maxGifFrames && gif.frames.length > options.maxGifFrames) {
         process.send({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` })
-        process.exit(1);
       }
       async function cb() {
         if(framesProcessed < gif.frames.length) return
@@ -47,11 +46,9 @@ process.on("message", async (msg) => {
           .encodeGif(frames.filter((f) => f != undefined))
           .then((gif) => {
             process.send(gif.buffer)
-            process.exit(0);
           })
           .catch((e) => {
             process.send(null)
-            process.exit(1);
           });
       }
       framesProcessed = 0;
@@ -81,7 +78,6 @@ process.on("message", async (msg) => {
     } catch (e) {
       console.log(e)
       process.send(null)
-      process.exit(1);
     }
   }
 });
