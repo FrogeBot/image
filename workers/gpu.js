@@ -32,7 +32,6 @@ process.on("message", async (msg) => {
       console.log("done")
       
       process.send(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
-      process.exit(0);
     } catch (e) {
       console.log(e)
       process.send(null);
