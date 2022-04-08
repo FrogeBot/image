@@ -33,19 +33,21 @@ class Queue {
     
     try {
       this.workingOnPromise = true;
-      item.promise()
-        .then((value) => {
-          this.workingOnPromise = false;
-          item.resolve(value);
-          this.queue.shift();
-          this.dequeue();
-        })
-        .catch(err => {
-          this.workingOnPromise = false;
-          item.reject(err);
-          this.queue.shift();
-          this.dequeue();
-        })
+      setTimeout(() => {
+        item.promise()
+          .then((value) => {
+            this.workingOnPromise = false;
+            item.resolve(value);
+            this.queue.shift();
+            this.dequeue();
+          })
+          .catch(err => {
+            this.workingOnPromise = false;
+            item.reject(err);
+            this.queue.shift();
+            this.dequeue();
+          })
+        }, 2500)
     } catch (err) {
       this.workingOnPromise = false;
       item.reject(err);
