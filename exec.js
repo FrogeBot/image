@@ -17,7 +17,7 @@ module.exports = function(opts) {
 
   const { Worker } = require("worker_threads");
 
-  const { gmToBuffer, getFormat, readBuffer } = require("./utils.js")(options);
+  const { gmToBuffer, getFormat, readBuffer, readURL } = require("./utils.js")(options);
 
   function createNewImage(w, h, bg) {
     return new Promise(async (resolve, reject) => {
@@ -186,6 +186,7 @@ module.exports = function(opts) {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
           let worker = new Worker(__dirname + "/workers/gpugif.js");
+          let imgBuffer = await readURL(imgUrl)
           worker.postMessage({
             imgUrl,
             list,
@@ -198,9 +199,11 @@ module.exports = function(opts) {
           worker.on("message", async (img) => {
             if (img == null) return reject("Null image");
             if (typeof img === "object" && img.error) return reject(img.error);
+            if(imgBuffer.length/2 > img.length) reject("GIF failed to render. Try again later")
             resolve(Buffer.from(img));
           });
           worker.on("error", err => {
+            console.log(err)
             worker.terminate();
             reject("Process error")
           })

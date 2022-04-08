@@ -1,6 +1,5 @@
 const { isMainThread, parentPort } = require("worker_threads");
 
-const { GPU } = require('gpu.js');
 
 function toArrayBuffer(buf) {
   const ab = new ArrayBuffer(buf.length);
@@ -11,16 +10,17 @@ function toArrayBuffer(buf) {
   return ab;
 }
 
+const { GPU } = require('gpu.js');
 const { createCanvas } = require('canvas')
         
 const canvas = createCanvas(512,512)
-const ctx = canvas.getContext('2d')
 const gpu = new GPU({ canvas });
 const render = gpu.createKernel(kernelFunc)
 
 render
 .setGraphical(true)
 .setDynamicArguments(true)
+.setDynamicOutput(true)
 .setPipeline(true)
 
 parentPort.once("message", async (msg) => {
@@ -35,58 +35,20 @@ parentPort.once("message", async (msg) => {
   if (!isMainThread) {
     try {
       var Jimp = require("jimp");
-      let { jimpReadURL } = require("../utils.js")(msg.options);
+      let { jimpReadURL, readBuffer } = require("../utils.js")(msg.options);
 
       let list = msg.list;
+      let img;
       if (msg.imgUrl) {
-        let imgUrl = msg.imgUrl;
-        let img = await jimpReadURL(imgUrl);
-
-        render
-        .setGraphical(true)
-        .setDynamicArguments(true)
-        .setPipeline(true)
-        .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
-        .setOutput([img.bitmap.width, img.bitmap.height]);
-      
-        for (let i = 0; i < list.length; i++) {
-          // Convert data formats
-          if(list[i][0] == 'composite') {
-            // Composite: Jimp to Uint8ClampedArray
-            list[i][2] = new Uint8ClampedArray(toArrayBuffer(list[i][1][0].data));
-            list[i][1] = [list[i][1][1], list[i][1][2], list[i][1][0].width, list[i][1][0].height];
-          }
-
-          // Loop through actions in list
-          await render(
-            new Uint8ClampedArray(toArrayBuffer(img.bitmap.data)),
-            methodList.indexOf(list[i][0]),
-            list[i][1].length > 0 ? list[i][1] : [0],
-            (list[i][2] && list[i][2].length) > 0 ? list[i][2] : [0]
-          ); // Perform each in succecssion
-          img.bitmap.data = Buffer.from(render.getPixels())
-        }
-        parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
+        img = await jimpReadURL(msg.imgUrl);
       } else if (msg.buffer) {
-        let img = Buffer.from(msg.buffer);
-
-        render
-        .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
-        .setOutput([img.bitmap.width, img.bitmap.height]);
-      
-        for (let i = 0; i < list.length; i++) {
-          // Loop through actions in list
-          await render(
-            new Uint8ClampedArray(toArrayBuffer(img.bitmap.data)),
-            methodList.indexOf(list[i][0]),
-            list[i][1].length > 0 ? list[i][1] : [0]
-          ); // Perform each in succecssion
-          img.bitmap.data = Buffer.from(render.getPixels())
-        }
-        parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
-        process.exit(0);
+        img = await readBuffer(Buffer.from(msg.buffer));
       }
 
+      img = await doGPUExecution(img, list);
+      
+      parentPort.postMessage(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
+      process.exit(0);
     } catch (e) {
       console.log(e)
       parentPort.postMessage(null);
@@ -94,6 +56,31 @@ parentPort.once("message", async (msg) => {
     }
   }
 });
+
+async function doGPUExecution(img, list) {
+  render
+  .setConstants({ w: img.bitmap.width, h: img.bitmap.height })
+  .setOutput([img.bitmap.width, img.bitmap.height]);
+
+  for (let i = 0; i < list.length; i++) {
+    // Convert data formats
+    if(list[i][0] == 'composite') {
+      // Composite: Jimp to Uint8ClampedArray
+      list[i][2] = new Uint8ClampedArray(toArrayBuffer(list[i][1][0].data));
+      list[i][1] = [list[i][1][1], list[i][1][2], list[i][1][0].width, list[i][1][0].height];
+    }
+
+    // Loop through actions in list
+    await render(
+      new Uint8ClampedArray(toArrayBuffer(img.bitmap.data)),
+      methodList.indexOf(list[i][0]),
+      list[i][1].length > 0 ? list[i][1] : [0],
+      (list[i][2] && list[i][2].length) > 0 ? list[i][2] : [0]
+    ); // Perform each in succecssion
+    img.bitmap.data = Buffer.from(render.getPixels())
+  }
+  return img
+}
 
 const methodList = [
   'invert',
@@ -202,5 +189,6 @@ function kernelFunc(bitmap, method, data, data2) {
 
 module.exports = {
   kernelFunc,
+  doGPUExecution,
   methodList
 }

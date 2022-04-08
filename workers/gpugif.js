@@ -12,17 +12,25 @@ function toArrayBuffer(buf) {
   return ab;
 }
 
+const { GPU } = require('gpu.js');
+const { createCanvas } = require('canvas')
+const { kernelFunc, doGPUExecution } = require("./gpu.js");
+        
+const canvas = createCanvas(512,512)
+const gpu = new GPU({ canvas });
+const render = gpu.createKernel(kernelFunc)
+
+render
+.setGraphical(true)
+.setDynamicArguments(true)
+.setPipeline(true)
+
 const { methodList } = require("./gpu.js");
-let render
 let framesProcessed = 0;
 let frames = [];
 parentPort.once("message", async (msg) => {
   if (!isMainThread) {
     var Jimp = require("jimp");
-    const { GPU } = require('gpu.js');
-    const { kernelFunc } = require("./gpu.js");
-    const gpu = new GPU();
-    render = gpu.createKernel(kernelFunc)
     let { imgUrl, list, frameSkip, speed, lib, options } = msg;
     if(!options) {
       options = {
@@ -40,12 +48,22 @@ parentPort.once("message", async (msg) => {
   
     try {
       const codec = new GifCodec();
-      let gif = await codec.decodeGif(await readURL(imgUrl));
+
+      let img;
+      if (msg.imgUrl) {
+        img = await readURL(msg.imgUrl);
+      } else if (msg.buffer) {
+        img = await readBuffer(Buffer.from(msg.buffer));
+      }
+
+      let gif = await codec.decodeGif(img);
       if(options.maxGifFrames && gif.frames.length > options.maxGifFrames) {
         parentPort.postMessage({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` });
         process.exit(1);
       }
       async function cb() {
+        // console.log(framesProcessed) // putting this here fixes the problem with only the first frame of a gif rendering
+        if(framesProcessed < gif.frames.length) return
         codec
           .encodeGif(frames.filter((f) => f != undefined))
           .then((gif) => {
@@ -82,6 +100,7 @@ parentPort.once("message", async (msg) => {
         }
       }
     } catch (e) {
+      console.log(e)
       parentPort.postMessage(null);
       process.exit(1);
     }
@@ -90,31 +109,16 @@ parentPort.once("message", async (msg) => {
 
 async function renderFrame(list, i, speed, frameData, frameSkip, lib, options, cb) {
   let frame = await frameData[i];
-  render
-  .setConstants({ w: frame.bitmap.width, h: frame.bitmap.height })
-  .setGraphical(true)
-  .setDynamicOutput(true)
-  .setOutput([frame.bitmap.width, frame.bitmap.height]);
-
-  for (let j = 0; j < list.length; j++) {
-    // Loop through actions in list
-    await render(
-      new Uint8ClampedArray(toArrayBuffer(frame.bitmap.data)),
-      methodList.indexOf(list[j][0]),
-      list[j][1].length > 0 ? list[j][1] : [0]
-    ); // Perform each in succecssion
-  }
-  let newFrame = new GifFrame({
-    width: frame.bitmap.width,
-    height: frame.bitmap.height,
-    data: Buffer.from(render.getPixels())
-  }, {
+  let newFrameData = await doGPUExecution(frame, list);
+  framesProcessed += frameSkip;
+  let newFrame = new GifFrame(newFrameData, {
     disposalMethod: frame.disposalMethod,
     delayCentisecs: Math.max(2, Math.round(frame.delayCentisecs / speed)),
     interlaced: frame.interlaced,
   });
   GifUtil.quantizeDekker(newFrame);
   frames[i] = newFrame;
-  framesProcessed += frameSkip;
+  i = i; // this for some reason makes the check on the following line function correctly more often
+  // note: thanks v8
   if (framesProcessed >= frameData.length) cb();
 }
