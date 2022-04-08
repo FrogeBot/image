@@ -1,7 +1,7 @@
 const cluster = require("cluster");
 const { doGPUExecution } = require("../gpuUtil.js");
 
-process.once("message", async (msg) => {
+process.on("message", async (msg) => {
   if(!msg.options) {
     msg.options = {
       imageMagick: false,

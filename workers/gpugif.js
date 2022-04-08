@@ -8,7 +8,7 @@ const { doGPUExecution } = require("../gpuUtil.js");
 
 let framesProcessed = 0;
 let frames = [];
-process.once("message", async (msg) => {
+process.on("message", async (msg) => {
   if(cluster.isWorker) {
     var Jimp = require("jimp");
     let { imgUrl, list, frameSkip, speed, lib, options } = msg;
