@@ -323,6 +323,17 @@ module.exports = function(opts) {
         //     resolve(newImgMagick);
         //   }
         // }
+        if (method == "composite") {
+          if (img.bitmap) {
+            img.composite( await readBuffer(Buffer.from(params[0])), params[1], params[2])
+            resolve(img);
+          } else {
+            let newImg = await Jimp.read(await gmToBuffer(img))
+            newImg.composite( await Jimp.read(Buffer.from(params[0])), params[1], params[2])
+            let newImgMagick = gm(await newImg.getBufferAsync(Jimp.AUTO));
+            resolve(newImgMagick);
+          }
+        }
       } catch (e) {
         reject(e);
       }
