@@ -25,8 +25,11 @@ process.on("message", async (msg) => {
       } else if (msg.buffer) {
         img = await readBuffer(Buffer.from(msg.buffer));
       }
+      console.log("not done")
 
       img = await doGPUExecution(img, list);
+
+      console.log("done")
       
       process.send(await img.getBufferAsync(Jimp.AUTO)); // Resolve image
       process.exit(0);
