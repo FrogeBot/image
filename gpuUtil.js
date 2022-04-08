@@ -11,7 +11,7 @@ const { GPU } = require('gpu.js');
 const { createCanvas } = require('canvas')
         
 const canvas = createCanvas(512,512)
-const gpu = new GPU({ canvas });
+const gpu = new GPU({ canvas, mode: process.env.NATIVE_MODE || 'gpu' });
 const render = gpu.createKernel(kernelFunc)
 
 render
