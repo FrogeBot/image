@@ -181,13 +181,21 @@ module.exports = function(opts) {
       }
     });
   }
+
+  const cluster = require("cluster");
+
   function runGpuOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
-          let worker = new Worker(__dirname + "/workers/gpugif.js");
           let imgBuffer = await readURL(imgUrl)
-          worker.postMessage({
+          cluster.setupPrimary({
+            exec: __dirname + "/workers/gpugif.js",
+            args: [],
+            silent: false
+          });
+          let worker = cluster.fork();
+          worker.send({
             imgUrl,
             list,
             frameSkip: 1,
@@ -204,7 +212,7 @@ module.exports = function(opts) {
           });
           worker.on("error", err => {
             console.log(err)
-            worker.terminate();
+            worker.kill();
             reject("Process error")
           })
         } catch (e) {
@@ -212,11 +220,16 @@ module.exports = function(opts) {
           reject(e);
         }
       } else {
-        let worker = new Worker(__dirname + "/workers/gpu.js");
-        worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
+        cluster.setupPrimary({
+          exec: __dirname + "/workers/gpu.js",
+          args: [],
+          silent: false
+        });
+        let worker = cluster.fork();
+        worker.send({ imgUrl, list, allowBackgrounds: true, options });
 
         worker.on("message", (img) => {
-          worker.terminate();
+          worker.kill();
           if (img == null) reject("Null image");
           else resolve(Buffer.from(img));
         });

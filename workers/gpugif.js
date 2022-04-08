@@ -1,35 +1,15 @@
 const { GifFrame, GifUtil, GifCodec } = require("gifwrap");
-const { isMainThread, parentPort } = require("worker_threads");
+const cluster = require("cluster");
 
 let readBuffer, readURL
 
-function toArrayBuffer(buf) {
-  const ab = new ArrayBuffer(buf.length);
-  const view = new Uint8Array(ab);
-  for (let i = 0; i < buf.length; ++i) {
-      view[i] = buf[i];
-  }
-  return ab;
-}
-
-const { GPU } = require('gpu.js');
-const { createCanvas } = require('canvas')
-const { kernelFunc, doGPUExecution } = require("./gpu.js");
+const { doGPUExecution } = require("../gpuUtil.js");
         
-const canvas = createCanvas(512,512)
-const gpu = new GPU({ canvas });
-const render = gpu.createKernel(kernelFunc)
 
-render
-.setGraphical(true)
-.setDynamicArguments(true)
-.setPipeline(true)
-
-const { methodList } = require("./gpu.js");
 let framesProcessed = 0;
 let frames = [];
-parentPort.once("message", async (msg) => {
-  if (!isMainThread) {
+process.once("message", async (msg) => {
+  if(cluster.isWorker) {
     var Jimp = require("jimp");
     let { imgUrl, list, frameSkip, speed, lib, options } = msg;
     if(!options) {
@@ -58,20 +38,19 @@ parentPort.once("message", async (msg) => {
 
       let gif = await codec.decodeGif(img);
       if(options.maxGifFrames && gif.frames.length > options.maxGifFrames) {
-        parentPort.postMessage({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` });
+        process.send({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` })
         process.exit(1);
       }
       async function cb() {
-        // console.log(framesProcessed) // putting this here fixes the problem with only the first frame of a gif rendering
         if(framesProcessed < gif.frames.length) return
         codec
           .encodeGif(frames.filter((f) => f != undefined))
           .then((gif) => {
-            parentPort.postMessage(gif.buffer);
+            process.send(gif.buffer)
             process.exit(0);
           })
           .catch((e) => {
-            parentPort.postMessage(null);
+            process.send(null)
             process.exit(1);
           });
       }
@@ -101,7 +80,7 @@ parentPort.once("message", async (msg) => {
       }
     } catch (e) {
       console.log(e)
-      parentPort.postMessage(null);
+      process.send(null)
       process.exit(1);
     }
   }
@@ -118,7 +97,5 @@ async function renderFrame(list, i, speed, frameData, frameSkip, lib, options, c
   });
   GifUtil.quantizeDekker(newFrame);
   frames[i] = newFrame;
-  i = i; // this for some reason makes the check on the following line function correctly more often
-  // note: thanks v8
   if (framesProcessed >= frameData.length) cb();
 }
