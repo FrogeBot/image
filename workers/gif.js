@@ -36,19 +36,19 @@ parentPort.once("message", async (msg) => {
       const codec = new GifCodec();
       let gif = await codec.decodeGif(await readURL(imgUrl));
       if(options.maxGifFrames && gif.frames.length > options.maxGifFrames) {
-        await parentPort.postMessage({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` });
+        parentPort.postMessage({ error: `Too many GIF frames. Max: ${options.maxGifFrames}` });
         process.exit(1);
       }
       async function cb() {
         codec
           .encodeGif(frames.filter((f) => f != undefined))
           .then((gif) => {
-            await parentPort.postMessage(gif.buffer);
+            parentPort.postMessage(gif.buffer);
             clearInterval(workerInterval);
           })
           .catch((e) => {
             console.log(e);
-            await parentPort.postMessage(null);
+            parentPort.postMessage(null);
             clearInterval(workerInterval);
           });
       }
@@ -78,7 +78,7 @@ parentPort.once("message", async (msg) => {
       }
     } catch (e) {
       console.log(e);
-      await parentPort.postMessage(null);
+      parentPort.postMessage(null);
       process.exit(1);
     }
   }
