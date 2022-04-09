@@ -36,6 +36,39 @@ module.exports = function(opts) {
       });
     });
   }
+  function getSize(imgUrl) {
+    return new Promise(async (resolve, reject) => {
+      let maxSize = Number(options.maxImageSize);
+      gm(request(imgUrl)).size(
+        { bufferStream: true },
+        async function (err, size) {
+          if (err) {
+            //console.log(err)
+            reject(err);
+          } else {
+            if(maxSize < size.width || maxSize < size.height) {
+              await this.resize(
+                maxSize > size.width ? size.width : maxSize,
+                maxSize > size.height ? size.height : maxSize
+              );
+              this.size(
+              { bufferStream: true },
+              async function (err, size) {
+                if (err) {
+                  //console.log(err)
+                  reject(err);
+                } else {
+                  resolve([size.width, size.height])
+                }
+              });
+            } else {
+              resolve([size.width, size.height])
+            }
+          }
+        }
+      );
+    });
+  }
 
   function readURL(imgUrl, useWebp = true, as = undefined) {
     return new Promise(async (resolve, reject) => {
@@ -66,8 +99,11 @@ module.exports = function(opts) {
   function jimpReadURL(imgUrl) {
     return new Promise(async (resolve, reject) => {
       try {
+        let maxSize = Number(options.maxImageSize);
         Jimp.read(await readURL(imgUrl, false, undefined))
         .then(async (img) => {
+          if(maxSize < img.bitmap.width || maxSize < img.bitmap.height)
+            img.scaleToFit(maxSize, maxSize)
           resolve(img);
         })
         .catch(reject);
@@ -112,6 +148,7 @@ module.exports = function(opts) {
     measureTextHeight,
     gmToBuffer,
     getFormat,
+    getSize,
     loadFont
   }
 };

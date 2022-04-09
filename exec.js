@@ -9,7 +9,7 @@ module.exports = function(opts) {
   Object.assign(options, opts)
 
   var Jimp = require("jimp");
-  var sharp = require("sharp");
+  // var sharp = require("sharp");
   var gm = require("gm");
   if (options.imageMagick.toString() == "true") {
     gm = gm.subClass({ imageMagick: true });
@@ -17,7 +17,7 @@ module.exports = function(opts) {
 
   const { Worker } = require("worker_threads");
 
-  const { gmToBuffer, getFormat, readBuffer } = require("./utils.js")(options);
+  const { gmToBuffer, getFormat, readBuffer, readURL } = require("./utils.js")(options);
 
   function createNewImage(w, h, bg) {
     return new Promise(async (resolve, reject) => {
@@ -34,7 +34,59 @@ module.exports = function(opts) {
     });
   }
 
-  function exec(imgUrl, list) {
+  const Queue = require("./queue.js");
+  const cpuQueue = new Queue();
+  async function exec(imgUrl, list, interaction) {
+    return cpuQueue.enqueue(() => runJimpOperation(imgUrl, list), (index, size) => {
+      if(index == 0) {
+        interaction.editReply({
+          content: process.env.MSG_PROCESSING,
+          embeds: [],
+        });
+      } else {
+        interaction.editReply({
+          content: process.env.MSG_WAITING,
+          embeds: [{
+            title: "Waiting in the queue...",
+            description: `<@${interaction.member.id}> - ${process.env.MSG_IN_QUEUE} ${index}/${size}`,
+            color: Number(process.env.EMBED_COLOUR),
+            timestamp: new Date(),
+            author: {
+              name: process.env.BOT_NAME,
+              icon_url: interaction.client.user.displayAvatarURL(),
+            },
+          }],
+        });
+      }
+    });
+  }
+
+  async function execGM(imgUrl, list, interaction) {
+    return cpuQueue.enqueue(() => runMagickOperation(imgUrl, list), (index, size) => {
+      if(index == 0) {
+        interaction.editReply({
+          content: process.env.MSG_PROCESSING,
+          embeds: [],
+        });
+      } else {
+        interaction.editReply({
+          content: process.env.MSG_WAITING,
+          embeds: [{
+            title: "Waiting in the queue...",
+            description: `<@${interaction.member.id}> - ${process.env.MSG_IN_QUEUE} ${index}/${size}`,
+            color: Number(process.env.EMBED_COLOUR),
+            timestamp: new Date(),
+            author: {
+              name: process.env.BOT_NAME,
+              icon_url: interaction.client.user.displayAvatarURL(),
+            },
+          }],
+        });
+      }
+    });
+  }
+
+  function runJimpOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
@@ -44,7 +96,7 @@ module.exports = function(opts) {
             list,
             frameSkip: 1,
             speed: 1,
-            jimp: true,
+            lib: 'jimp',
             options,
           });
 
@@ -68,7 +120,7 @@ module.exports = function(opts) {
     });
   }
 
-  function execGM(imgUrl, list) {
+  function runMagickOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
       if ((await getFormat(imgUrl)) == "GIF") {
         try {
@@ -78,13 +130,14 @@ module.exports = function(opts) {
             list,
             frameSkip: 1,
             speed: 1,
-            jimp: false,
+            lib: 'magick',
             options,
           });
 
           worker.on("message", async (img) => {
+            worker.terminate();
             if (img == null) reject("Null image");
-            resolve(Buffer.from(img));
+            else resolve(Buffer.from(img));
           });
         } catch (e) {
           //console.log(e)
@@ -95,9 +148,104 @@ module.exports = function(opts) {
         worker.postMessage({ imgUrl, list, allowBackgrounds: true, options });
 
         worker.on("message", (img) => {
+          worker.terminate();
           if (img == null) reject("Null image");
           else resolve(Buffer.from(img));
         });
+      }
+    });
+  }
+
+  const gpuQueue = new Queue();
+  async function execGPU(imgUrl, list, interaction) {
+    return gpuQueue.enqueue(() => runGpuOperation(imgUrl, list), (index, size) => {
+      if(index == 0) {
+        interaction.editReply({
+          content: process.env.MSG_PROCESSING,
+          embeds: [],
+        });
+      } else {
+        interaction.editReply({
+          content: process.env.MSG_WAITING,
+          embeds: [{
+            title: "Waiting in the queue...",
+            description: `<@${interaction.member.id}> - ${process.env.MSG_IN_QUEUE} ${index}/${size}`,
+            color: Number(process.env.EMBED_COLOUR),
+            timestamp: new Date(),
+            author: {
+              name: process.env.BOT_NAME,
+              icon_url: interaction.client.user.displayAvatarURL(),
+            },
+          }],
+        });
+      }
+    });
+  }
+
+  const cluster = require("cluster");
+
+  function runGpuOperation(imgUrl, list) {
+    return new Promise(async (resolve, reject) => {
+      if ((await getFormat(imgUrl)) == "GIF") {
+        try {
+          let imgBuffer = await readURL(imgUrl)
+          cluster.setupPrimary({
+            exec: __dirname + "/workers/gpugif.js",
+            args: [],
+            silent: false
+          });
+          let worker = cluster.fork();
+          worker.send({
+            imgUrl,
+            list,
+            frameSkip: 1,
+            speed: 1,
+            lib: 'gpu',
+            options,
+          });
+
+          worker.on("message", async (img) => {
+            worker.kill();
+            if (img == null) return reject("Null image");
+            if (typeof img === "object" && img.error) return reject(img.error);
+            if(imgBuffer.length/2 > img.length) reject("GIF failed to render. Try again later")
+            resolve(Buffer.from(img));
+          });
+          worker.on("error", err => {
+            console.log(err)
+            worker.kill();
+            reject("Process error")
+          })
+          worker.on("exit", () => {
+            reject("Process exited unexpectedly")
+          })
+        } catch (e) {
+          //console.log(e)
+          reject(e);
+        }
+      } else {
+        cluster.setupPrimary({
+          exec: __dirname + "/workers/gpu.js",
+          args: [],
+          silent: false
+        });
+        let worker = cluster.fork();
+        worker.send({ imgUrl, list, allowBackgrounds: true, options });
+
+        worker.on("message", (img) => {
+          worker.kill();
+          if (img == null) return reject("Null image");
+          if (typeof img === "object" && img.error) return reject(img.error);
+          else resolve(Buffer.from(img));
+        });
+        worker.on("error", err => {
+          console.log(err)
+          worker.kill();
+          reject("Process error")
+        })
+        worker.on("exit", () => {
+          reject("Process exited unexpectedly")
+        })
       }
     });
   }
@@ -114,6 +262,7 @@ module.exports = function(opts) {
             }
           }
         }
+        // console.log(params)
         if (method != "composite" && img[method]) {
           // If native method
           img = await img[method](...params); // Run method function on image
@@ -183,26 +332,37 @@ module.exports = function(opts) {
           );
           resolve(newImg);
         }
+        // if (method == "composite") {
+        //   if (img.bitmap) {
+        //     newImg = sharp(await img.getBufferAsync(Jimp.AUTO)).composite([
+        //       {
+        //         input: Buffer.from(params[0]),
+        //         top: params[2],
+        //         left: params[1],
+        //       },
+        //     ]);
+        //     let newImgJimp = readBuffer(await newImg.toBuffer());
+        //     resolve(newImgJimp);
+        //   } else {
+        //     newImg = sharp(await gmToBuffer(img)).composite([
+        //       {
+        //         input: Buffer.from(params[0]),
+        //         top: params[2],
+        //         left: params[1],
+        //       },
+        //     ]);
+        //     let newImgMagick = gm(await newImg.toBuffer());
+        //     resolve(newImgMagick);
+        //   }
+        // }
         if (method == "composite") {
           if (img.bitmap) {
-            newImg = sharp(await img.getBufferAsync(Jimp.AUTO)).composite([
-              {
-                input: Buffer.from(params[0]),
-                top: params[2],
-                left: params[1],
-              },
-            ]);
-            let newImgJimp = readBuffer(await newImg.toBuffer());
-            resolve(newImgJimp);
+            img.composite( await readBuffer(Buffer.from(params[0])), params[1], params[2])
+            resolve(img);
           } else {
-            newImg = sharp(await gmToBuffer(img)).composite([
-              {
-                input: Buffer.from(params[0]),
-                top: params[2],
-                left: params[1],
-              },
-            ]);
-            let newImgMagick = gm(await newImg.toBuffer());
+            let newImg = await Jimp.read(await gmToBuffer(img))
+            newImg.composite( await Jimp.read(Buffer.from(params[0])), params[1], params[2])
+            let newImgMagick = gm(await newImg.getBufferAsync(Jimp.AUTO));
             resolve(newImgMagick);
           }
         }
@@ -215,6 +375,7 @@ module.exports = function(opts) {
   return {
     exec,
     execGM,
+    execGPU,
     performMethod,
     customMethod,
   }
