@@ -88,7 +88,29 @@ module.exports = function(opts) {
 
   function runJimpOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
-      if ((await getFormat(imgUrl)) == "GIF") {
+      if (["MP4", "MOV", "WEBM"].indexOf(imgUrl.split("?")[0].split('.').pop().toUpperCase()) != -1) {
+        let worker = new Worker(__dirname + "/workers/video.js");
+        worker.postMessage({
+          vidUrl: imgUrl,
+          list,
+          frameSkip: 1,
+          speed: 1,
+          lib: 'jimp',
+          options,
+        });
+
+        worker.on("message", (video) => {
+          worker.terminate();
+          if (video == null) return reject("Null video");
+          if (typeof video === "object" && video.error) return reject(video.error);
+          else resolve({ type: 'video', video, extension: imgUrl.split("?")[0].split('.').pop() });
+        });
+        worker.on("error", err => {
+          console.log(err)
+          worker.terminate();
+          reject("Process error")
+        })
+      } else if ((await getFormat(imgUrl)) == "GIF") {
         try {
           let worker = new Worker(__dirname + "/workers/gif.js");
           worker.postMessage({
@@ -102,7 +124,7 @@ module.exports = function(opts) {
 
           worker.on("message", async (img) => {
             if (img == null) reject("Null image");
-            resolve(Buffer.from(img));
+            else resolve(Buffer.from(img));
           });
         } catch (e) {
           //console.log(e)
@@ -122,7 +144,29 @@ module.exports = function(opts) {
 
   function runMagickOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
-      if ((await getFormat(imgUrl)) == "GIF") {
+      if (["MP4", "MOV", "WEBM"].indexOf(imgUrl.split("?")[0].split('.').pop().toUpperCase()) != -1) {
+        let worker = new Worker(__dirname + "/workers/video.js");
+        worker.postMessage({
+          vidUrl: imgUrl,
+          list,
+          frameSkip: 1,
+          speed: 1,
+          lib: 'magick',
+          options,
+        });
+
+        worker.on("message", (video) => {
+          worker.terminate();
+          if (video == null) return reject("Null video");
+          if (typeof video === "object" && video.error) return reject(video.error);
+          else resolve({ type: 'video', video, extension: imgUrl.split("?")[0].split('.').pop() });
+        });
+        worker.on("error", err => {
+          console.log(err)
+          worker.terminate();
+          reject("Process error")
+        })
+      } else if (await getFormat(imgUrl) == "GIF") {
         try {
           let worker = new Worker(__dirname + "/workers/gif.js");
           worker.postMessage({
@@ -186,7 +230,29 @@ module.exports = function(opts) {
 
   function runGpuOperation(imgUrl, list) {
     return new Promise(async (resolve, reject) => {
-      if ((await getFormat(imgUrl)) == "GIF") {
+      if (["MP4", "MOV", "WEBM"].indexOf(imgUrl.split('.').pop().split("?")[0].toUpperCase()) != -1) {
+        let worker = new Worker(__dirname + "/workers/video.js");
+        worker.postMessage({
+          vidUrl: imgUrl,
+          list,
+          frameSkip: 1,
+          speed: 1,
+          lib: 'gpu',
+          options,
+        });
+
+        worker.on("message", (video) => {
+          worker.terminate();
+          if (video == null) return reject("Null video");
+          if (typeof video === "object" && video.error) return reject(video.error);
+          else resolve({ type: 'video', video, extension: imgUrl.split("?")[0].split('.').pop() });
+        });
+        worker.on("error", err => {
+          console.log(err)
+          worker.terminate();
+          reject("Process error")
+        })
+      } else if ((await getFormat(imgUrl)) == "GIF") {
         try {
           let imgBuffer = await readURL(imgUrl)
           cluster.setupPrimary({
