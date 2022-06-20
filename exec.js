@@ -87,7 +87,18 @@ module.exports = function(opts) {
   }
 
   function runJimpOperation(imgUrl, list) {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (_resolve, _reject) => {
+      let opTimeout;
+      if(process.env.OPERATION_TIMEOUT_MINS) timeout = setTimeout(() => _reject("Operation took too long. Cancelled to stop blocking."), Number(process.env.OPERATION_TIMEOUT_MINS)*60000)
+      const resolve = r => {
+        clearTimeout(opTimeout);
+        _resolve(r);
+      }
+      const reject = r => {
+        clearTimeout(opTimeout);
+        _reject(r);
+      }
+      
       if (["MP4", "MOV", "WEBM"].indexOf(imgUrl.split("?")[0].split('.').pop().toUpperCase()) != -1) {
         let worker = new Worker(__dirname + "/workers/video.js");
         worker.postMessage({
@@ -143,7 +154,18 @@ module.exports = function(opts) {
   }
 
   function runMagickOperation(imgUrl, list) {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (_resolve, _reject) => {
+      let opTimeout;
+      if(process.env.OPERATION_TIMEOUT_MINS) timeout = setTimeout(() => _reject("Operation took too long. Cancelled to stop blocking."), Number(process.env.OPERATION_TIMEOUT_MINS)*60000)
+      const resolve = r => {
+        clearTimeout(opTimeout);
+        _resolve(r);
+      }
+      const reject = r => {
+        clearTimeout(opTimeout);
+        _reject(r);
+      }
+      
       if (["MP4", "MOV", "WEBM"].indexOf(imgUrl.split("?")[0].split('.').pop().toUpperCase()) != -1) {
         let worker = new Worker(__dirname + "/workers/video.js");
         worker.postMessage({
@@ -229,7 +251,18 @@ module.exports = function(opts) {
   const cluster = require("cluster");
 
   function runGpuOperation(imgUrl, list) {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (_resolve, _reject) => {
+      let opTimeout;
+      if(process.env.OPERATION_TIMEOUT_MINS) timeout = setTimeout(() => _reject("Operation took too long. Cancelled to stop blocking."), Number(process.env.OPERATION_TIMEOUT_MINS)*60000)
+      const resolve = r => {
+        clearTimeout(opTimeout);
+        _resolve(r);
+      }
+      const reject = r => {
+        clearTimeout(opTimeout);
+        _reject(r);
+      }
+
       if (["MP4", "MOV", "WEBM"].indexOf(imgUrl.split('.').pop().split("?")[0].toUpperCase()) != -1) {
         let worker = new Worker(__dirname + "/workers/video.js");
         worker.postMessage({
